@@ -1,6 +1,6 @@
 # otus-lesson3
 
-##Введение в работу с LVM
+## Введение в работу с LVM
 
 Развернул и запустил виртуальную машину lvm.
 
@@ -95,11 +95,11 @@ mkdir: cannot create directory '/data': Permission denied
 /dev/mapper/otus-test on /data type ext4 (rw,relatime,seclabel,data=ordered)
 ```
 
-##Расширение LVM
+## Расширение LVM
 
 Создал PV на устройстве /dev/sdc  
 Расширил VG "otus" на устройство /dev/sdc  
-Проверил PV в МП "otus"  
+Проверил PV в VG "otus" и его размер   
 ```
 [vagrant@lvm ~]$ sudo pvcreate /dev/sdc
   Physical volume "/dev/sdc" successfully created.
@@ -108,5 +108,47 @@ mkdir: cannot create directory '/data': Permission denied
 [vagrant@lvm ~]$ sudo vgdisplay -v otus | grep 'PV Name'
   PV Name               /dev/sdb
   PV Name               /dev/sdc
+[vagrant@lvm ~]$ sudo vgs
+  VG         #PV #LV #SN Attr   VSize   VFree
+  VolGroup00   1   2   0 wz--n- <38.97g     0
+  otus         2   2   0 wz--n-  11.99g <3.90g
 ```
+
+Симмитировал заполнение раздела данными.
+```
+[vagrant@lvm ~]$ sudo dd if=/dev/zero of=/data/test.log bs=1M count=8000 status
+=progress
+7903117312 bytes (7.9 GB) copied, 19.061696 s, 415 MB/s
+dd: error writing '/data/test.log': No space left on device
+7880+0 records in
+7879+0 records out
+8262189056 bytes (8.3 GB) copied, 19.9629 s, 414 MB/s
+[vagrant@lvm ~]$ df -Th /data/
+Filesystem            Type  Size  Used Avail Use% Mounted on
+/dev/mapper/otus-test ext4  7.8G  7.8G     0 100% /data
+```
+
+Увеличил LV "test" до 80% от текущего объема VG "otus"
+```
+[vagrant@lvm ~]$ sudo lvextend -l+80%FREE /dev/otus/test
+  Size of logical volume otus/test changed from <8.00 GiB (2047 extents) to <11.12 GiB (2846 extents).
+  Logical volume otus/test successfully resized.
+[vagrant@lvm ~]$ sudo  lvs /dev/otus/test
+  LV   VG   Attr       LSize   Pool Origin Data%  Meta%  Move Log Cpy%Sync Convert
+  test otus -wi-ao---- <11.12g
+```
+
+Растянул файловую систему на весь объем LV "test"
+```
+[vagrant@lvm ~]$ df -Th /data
+Filesystem            Type  Size  Used Avail Use% Mounted on
+/dev/mapper/otus-test ext4  7.8G  7.8G     0 100% /data
+[vagrant@lvm ~]$ sudo  resize2fs /dev/otus/test
+resize2fs 1.42.9 (28-Dec-2013)
+Filesystem at /dev/otus/test is mounted on /data; on-line resizing required
+old_desc_blocks = 1, new_desc_blocks = 2
+The filesystem on /dev/otus/test is now 2914304 blocks long.
+```
+
+## Уменьшение LV
 
