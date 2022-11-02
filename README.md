@@ -152,3 +152,35 @@ The filesystem on /dev/otus/test is now 2914304 blocks long.
 
 ## Уменьшение LV
 
+Для уменшения раздела отмонтировал раздел от каталога, проверил на ошибки.  
+Уменьшил размер файловой системы до 10Гб  
+Уменьшил размер LV "test" до 10Гб  
+Примонтировал раздел к каталогу  
+Проверил размер раздела  
+```
+[vagrant@lvm ~]$ sudo umount /data/
+[vagrant@lvm ~]$ sudo e2fsck -fy /dev/otus/test
+e2fsck 1.42.9 (28-Dec-2013)
+Pass 1: Checking inodes, blocks, and sizes
+Pass 2: Checking directory structure
+Pass 3: Checking directory connectivity
+Pass 4: Checking reference counts
+Pass 5: Checking group summary information
+/dev/otus/test: 12/729088 files (0.0% non-contiguous), 2105907/2914304 blocks
+[vagrant@lvm ~]$ sudo resize2fs /dev/otus/test 10G
+resize2fs 1.42.9 (28-Dec-2013)
+Resizing the filesystem on /dev/otus/test to 2621440 (4k) blocks.
+The filesystem on /dev/otus/test is now 2621440 blocks long.
+
+[vagrant@lvm ~]$ sudo lvreduce /dev/otus/test -L 10G
+  WARNING: Reducing active logical volume to 10.00 GiB.
+  THIS MAY DESTROY YOUR DATA (filesystem etc.)
+Do you really want to reduce otus/test? [y/n]: y
+  Size of logical volume otus/test changed from <11.12 GiB (2846 extents) to 10.00 GiB (2560 extents).
+  Logical volume otus/test successfully resized.
+[vagrant@lvm ~]$ sudo  mount /dev/otus/test /data/
+[vagrant@lvm ~]$ sudo df -Th /data/
+Filesystem            Type  Size  Used Avail Use% Mounted on /dev/mapper/otus-test ext4  9.8G  7.8G  1.6G  84% /data
+[vagrant@lvm ~]$
+```
+
