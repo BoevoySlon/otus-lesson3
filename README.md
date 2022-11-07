@@ -116,8 +116,8 @@ mkdir: cannot create directory '/data': Permission denied
 
 Симмитировал заполнение раздела данными.
 ```
-[vagrant@lvm ~]$ sudo dd if=/dev/zero of=/data/test.log bs=1M count=8000 status
-=progress
+[vagrant@lvm ~]$ sudo dd if=/dev/zero of=/data/test.log bs=1M count=8000  
+status =progress
 7903117312 bytes (7.9 GB) copied, 19.061696 s, 415 MB/s
 dd: error writing '/data/test.log': No space left on device
 7880+0 records in
