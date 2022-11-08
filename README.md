@@ -205,7 +205,7 @@ Creating journal (4096 blocks): done
 Writing superblocks and filesystem accounting information: done
 ```
 
-Смонтировал в /mnt
+Смонтировал в /mnt  
 Скопировал содержимое /var/ в /mnt/  
 Создал временный каталог, перенес туда содержимое /var/  
 
