@@ -38,14 +38,6 @@ realtime =none                   extsz=4096   blocks=0, rtextents=0
 ```
 [vagrant@lvm /]$ sudo -i
 [root@lvm ~]# xfsdump -J - /dev/VolGroup00/LogVol00 | xfsrestore -J - /mnt
-...
-xfsrestore: restore complete: 14 seconds elapsed
-xfsrestore: Restore Status: SUCCESS
-```
-
-```
-[vagrant@lvm /]$ sudo -i
-[root@lvm ~]# xfsdump -J - /dev/VolGroup00/LogVol00 | xfsrestore -J - /mnt
 xfsrestore: using file dump (drive_simple) strategy
 ...
 xfsdump: dump complete: 14 seconds elapsed
@@ -56,6 +48,16 @@ xfsrestore: Restore Status: SUCCESS
 [vagrant@lvm mnt]$ ls
 bin   dev  home  lib64  mnt  proc  run   srv  tmp  vagrant
 boot  etc  lib   media  opt  root  sbin  sys  usr  var
+```
+
+```
+[root@lvm boot]# for i in /proc/ /sys/ /dev/ /run/ /boot/; do mount --bind $i /mnt/$i; done
+[root@lvm boot]# chroot /mnt/
+[root@lvm /]#  grub2-mkconfig -o /boot/grub2/grub.cfg
+Generating grub configuration file ...
+Found linux image: /boot/vmlinuz-3.10.0-862.2.3.el7.x86_64
+Found initrd image: /boot/initramfs-3.10.0-862.2.3.el7.x86_64.img
+done
 ```
 
 ```
