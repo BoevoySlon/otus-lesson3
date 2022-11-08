@@ -1,4 +1,21 @@
 
+На имеĀщемсā образе centos/7 - v. 1804.2  
+
+1) Уменьшить том под / до 8G  
+2) Выделить том под /var - сделать в mirror
+3) Выделить том под /home      
+4) /home - сделать том для снапшотов  
+5) Прописать монтирование в fstab. 
+
+Работа со снапшотами:  
+- сгенерить файлы в /home/  
+- снять снапшот  
+- удалить часть файлов  
+- восстановится со снапшота
+
+## 1) Уменьшить том под / до 8G  
+
+Установил xfsdump
 ```
 [vagrant@lvm ~]$ sudo yum install xfsdump  
 ...
@@ -9,7 +26,7 @@ Dependency Installed:
   attr.x86_64 0:2.4.46-13.el7
 ```
 
-
+Создал VG и LV
 ```
 [vagrant@lvm ~]$ sudo pvcreate /dev/sdb
   Physical volume "/dev/sdb" successfully created.
@@ -19,6 +36,7 @@ Dependency Installed:
   Logical volume "lv_root" created.
 ```
 
+Создал файловую систему на созданном LV и смонтировал в /mnt
 ```
 [vagrant@lvm ~]$ sudo mkfs.xfs /dev/vg_root/lv_root
 meta-data=/dev/vg_root/lv_root   isize=512    agcount=4, agsize=655104 blks
@@ -35,6 +53,7 @@ realtime =none                   extsz=4096   blocks=0, rtextents=0
 /dev/mapper/vg_root-lv_root       10G   33M   10G   1% /mnt
 ```
 
+Сделал дамп корневой системы и восстановил его в /mnt. Поверил наличие каталогов.
 ```
 [vagrant@lvm /]$ sudo -i
 [root@lvm ~]# xfsdump -J - /dev/VolGroup00/LogVol00 | xfsrestore -J - /mnt
@@ -50,6 +69,10 @@ bin   dev  home  lib64  mnt  proc  run   srv  tmp  vagrant
 boot  etc  lib   media  opt  root  sbin  sys  usr  var
 ```
 
+Смонтировал каталоги из корня в /mnt  
+Сменил корневую файловую систему на /mnt  
+Сконфигурировал загрузчик  
+
 ```
 [root@lvm boot]# for i in /proc/ /sys/ /dev/ /run/ /boot/; do mount --bind $i /mnt/$i; done
 [root@lvm boot]# chroot /mnt/
@@ -60,6 +83,8 @@ Found initrd image: /boot/initramfs-3.10.0-862.2.3.el7.x86_64.img
 done
 ```
 
+Обновил образ initrd  
+
 ```
 [root@lvm grub2]# cd /boot ; for i in `ls initramfs-*img`; do dracut -v $i `echo $i|sed "s/initramfs-//g; s/.img//g"` --force; done
 ...
@@ -69,6 +94,9 @@ done
 *** Creating initramfs image file '/boot/initramfs-3.10.0-862.2.3.el7.x86_64.img
 ' done ***
 ```
+Отредактировал /boot/grub2/grub.cfg, заменил rd.lvm.lv=VolGroup00/LogVol00 на rd.lvm.lv=vg_root/lv_root  
+Перезагрузил ВМ
+Проверил смонтированные устройства
 
 ```
 [vagrant@lvm ~]$ lsblk
@@ -86,6 +114,8 @@ sdd                       8:48   0    1G  0 disk
 sde                       8:64   0    1G  0 disk
 ```
 
+Удалил старый системный LV
+Создал заново размером в 8Gb
 ```
 [vagrant@lvm ~]$ sudo  lvremove /dev/VolGroup00/LogVol00
 Do you really want to remove active logical volume VolGroup00/LogVol00? [y/n]: y
@@ -96,6 +126,10 @@ WARNING: xfs signature detected on /dev/VolGroup00/LogVol00 at offset 0. Wipe it
   Wiping xfs signature on /dev/VolGroup00/LogVol00.
   Logical volume "LogVol00" created.
 ```
+
+Создал файловую систему
+Смонтировал в /mnt
+Сделал дамп с корневой системы и восстановил в /mnt
 
 ```
 [vagrant@lvm ~]$ sudo mkfs.xfs /dev/VolGroup00/LogVol00
@@ -118,6 +152,10 @@ xfsrestore: restore complete: 14 seconds elapsed
 xfsrestore: Restore Status: SUCCESS
 ```
 
+Смонтировал каталоги из корня в /mnt  
+Сменил корневую файловую систему на /mnt  
+Сконфигурировал загрузчик  
+
 ```
 [root@lvm ~]# for i in /proc/ /sys/ /dev/ /run/ /boot/; do mount --bind $i /mnt/$i; done
 [root@lvm ~]# chroot /mnt/
@@ -128,6 +166,7 @@ Found initrd image: /boot/initramfs-3.10.0-862.2.3.el7.x86_64.img
 done
 ```
 
+Обновил образ initrd  
 ```
 [root@lvm /]# cd /boot ; for i in `ls initramfs-*img`; do dracut -v $i `echo $i|sed "s/initramfs-//g; s/.img//g"` --force; done
 ...
@@ -136,6 +175,11 @@ done
 *** Creating initramfs image file '/boot/initramfs-3.10.0-862.2.3.el7.x86_64.img
 ' done ***
 ```
+
+## 2) Выделить том под /var - сделать в mirror
+
+Создал зеркало на устройствах /dev/sdc /dev/sdd  
+Создал LV размером 950Мб  
 
 ```
 [root@lvm boot]# #pvcreate /dev/sdc /dev/sdd
@@ -148,7 +192,9 @@ done
   Rounding up size to full physical extent 952.00 MiB
   Logical volume "lv_var" created.
  ```
-  
+
+Создал файловую систему  
+
  ```
  [root@lvm boot]# mkfs.ext4 /dev/vg_var/lv_var
  Superblock backups stored on blocks:
@@ -159,17 +205,29 @@ Creating journal (4096 blocks): done
 Writing superblocks and filesystem accounting information: done
 ```
 
+Смонтировал в /mnt
+Скопировал содержимое /var/ в /mnt/  
+Создал временный каталог, перенес туда содержимое /var/  
+
 ```
 [root@lvm boot]# mount /dev/vg_var/lv_var /mnt
 [root@lvm boot]#  cp -aR /var/* /mnt/
 [root@lvm boot]#  mkdir /tmp/oldvar && mv /var/* /tmp/oldvar
 ```
 
+Отмонтировал /mnt  
+Смонтировал в /var  
+Добавил запись fstab для автоматического монтирования при загрузке системы  
+
 ```
-[root@lvm boot]#  umount /mnt
+[root@lvm boot]# umount /mnt
 [root@lvm boot]# mount /dev/vg_var/lv_var /var
 [root@lvm boot]# echo "`blkid | grep var: | awk '{print $2}'` /var ext4 defaults 0 0" >> /etc/fstab
 ```
+
+Перезагрузил систему  
+
+Удалил временный LV  
 
 ```
 [root@lvm ~]# vremove /dev/vg_root/lv_root
@@ -182,6 +240,11 @@ Do you really want to remove active logical volume vg_root/lv_root? [y/n]: y
 [root@lvm ~]# pvremove /dev/sdb
   Labels on physical volume "/dev/sdb" successfully wiped.
 ```
+
+## 3) Выделить том под /home  
+
+Создал LV и создал на нем файловую систему.  
+Смонтировал в /mnt  
 
 ```
 [root@lvm ~]# lvcreate -n LogVol_Home -L 2G /dev/VolGroup00
@@ -200,14 +263,28 @@ realtime =none                   extsz=4096   blocks=0, rtextents=0
 [root@lvm ~]# mount /dev/VolGroup00/LogVol_Home /mnt/
 ```
 
+Скопировал содержимое /home в /mnt  
+Удалил содержимое /home  
+Отмонтировал LV от /mnt и смонтировал в /home  
+Добавил запись в fstab для монтирования раздела при загрузке системы.  
+
 ```
 [root@lvm ~]# cp -aR /home/* /mnt/
 [root@lvm ~]# rm -rf /home/*
 [root@lvm ~]# umount /mnt
 [root@lvm ~]# mount /dev/VolGroup00/LogVol_Home /home/
-[root@lvm ~]# echo "`blkid | grep Home | awk '{print $2}'` /home xfs defaults 0
- 0" >> /etc/fstab
+[root@lvm ~]# echo "`blkid | grep Home | awk '{print $2}'` /home xfs defaults 0 0" >> /etc/fstab
 ```
+
+## 4) /home - сделать том для снапшотов 
+
+Создал 20 файлов в /home  
+Создал снапшот  
+Удалил часть файлов  
+Отмонтировал раздел  
+Восстановил снапшот  
+Смонтировал обратно в /home  
+Проверил наличие восстановленных файлов  
 
 ```
 [root@lvm ~]# touch /home/file{1..20}
