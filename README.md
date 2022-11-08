@@ -171,6 +171,57 @@ Writing superblocks and filesystem accounting information: done
 [root@lvm boot]# echo "`blkid | grep var: | awk '{print $2}'` /var ext4 defaults 0 0" >> /etc/fstab
 ```
 
+```
+[root@lvm ~]# vremove /dev/vg_root/lv_root
+-bash: vremove: command not found
+[root@lvm ~]# lvremove /dev/vg_root/lv_root
+Do you really want to remove active logical volume vg_root/lv_root? [y/n]: y
+  Logical volume "lv_root" successfully removed
+[root@lvm ~]# vgremove /dev/vg_root
+  Volume group "vg_root" successfully removed
+[root@lvm ~]# pvremove /dev/sdb
+  Labels on physical volume "/dev/sdb" successfully wiped.
+```
 
+```
+[root@lvm ~]# lvcreate -n LogVol_Home -L 2G /dev/VolGroup00
+  Logical volume "LogVol_Home" created.
+[root@lvm ~]# mkfs.xfs /dev/VolGroup00/LogVol_Home
+meta-data=/dev/VolGroup00/LogVol_Home isize=512    agcount=4, agsize=131072 blks
 
+         =                       sectsz=512   attr=2, projid32bit=1
+         =                       crc=1        finobt=0, sparse=0
+data     =                       bsize=4096   blocks=524288, imaxpct=25
+         =                       sunit=0      swidth=0 blks
+naming   =version 2              bsize=4096   ascii-ci=0 ftype=1
+log      =internal log           bsize=4096   blocks=2560, version=2
+         =                       sectsz=512   sunit=0 blks, lazy-count=1
+realtime =none                   extsz=4096   blocks=0, rtextents=0
+[root@lvm ~]# mount /dev/VolGroup00/LogVol_Home /mnt/
+```
 
+```
+[root@lvm ~]# cp -aR /home/* /mnt/
+[root@lvm ~]# rm -rf /home/*
+[root@lvm ~]# umount /mnt
+[root@lvm ~]# mount /dev/VolGroup00/LogVol_Home /home/
+[root@lvm ~]# echo "`blkid | grep Home | awk '{print $2}'` /home xfs defaults 0
+ 0" >> /etc/fstab
+```
+
+```
+[root@lvm ~]# touch /home/file{1..20}
+[root@lvm ~]# lvcreate -L 100MB -s -n home_snap /dev/VolGroup00/LogVol_Home
+  Rounding up size to full physical extent 128.00 MiB
+  Logical volume "home_snap" created.
+[root@lvm ~]# rm -f /home/file{11..20}
+[root@lvm ~]# umount /home
+[root@lvm ~]# lvconvert --merge /dev/VolGroup00/home_snap
+  Merging of volume VolGroup00/home_snap started.
+  VolGroup00/LogVol_Home: Merged: 100.00%
+[root@lvm ~]# mount /home
+[root@lvm ~]# ls /home
+file1   file12  file15  file18  file20  file5  file8
+file10  file13  file16  file19  file3   file6  file9
+file11  file14  file17  file2   file4   file7  vagrant
+```
